@@ -21,7 +21,16 @@ public class FoodController : ControllerBase
     [HttpGet]
     public IActionResult GetFoods()
     {
-        var foods = _context.Foods.ToList();
+        var foods = _context.Foods
+            .Select(f => new FoodDTO
+            {
+                FoodId = f.FoodId,
+                Name = f.Name,
+                Description = f.Description,
+                Price = f.Price
+            })
+            .ToList();
+
         return Ok(foods);
     }
 
@@ -30,12 +39,23 @@ public class FoodController : ControllerBase
     public IActionResult GetFood(int id)
     {
         var food = _context.Foods.Find(id);
+
         if (food == null)
         {
             return NotFound();
         }
-        return Ok(food);
+
+        var foodDTO = new FoodDTO
+        {
+            FoodId = food.FoodId,
+            Name = food.Name,
+            Description = food.Description,
+            Price = food.Price
+        };
+
+        return Ok(foodDTO);
     }
+
 
     // POST: api/food
     [HttpPost]
@@ -56,15 +76,28 @@ public class FoodController : ControllerBase
     [HttpPut("{id}")]
     public IActionResult UpdateFood(int id, [FromBody] Food food)
     {
-        if (id != food.FoodId)
+        var existingFood = _context.Foods.FirstOrDefault(f => f.FoodId == id);
+
+        if (existingFood == null)
         {
-            return BadRequest();
+            return NotFound(); // Return a 404 Not Found response if the resource doesn't exist
         }
 
-        _context.Entry(food).State = EntityState.Modified;
-        _context.SaveChanges();
+        try
+        {
+            // Perform the update on 'existingFood' properties
+            existingFood.Name = food.Name;
+            existingFood.Description = food.Description;
+            existingFood.Price = food.Price;
 
-        return NoContent();
+            _context.SaveChanges();
+            return Ok($"Edit food with ID: {id} successfully.");
+        }
+        catch (Exception ex)
+        {
+            // Log the exception
+            return StatusCode(500, "Internal server error: " + ex.Message);
+        }
     }
 
     // DELETE: api/food/{id}
@@ -80,6 +113,7 @@ public class FoodController : ControllerBase
         _context.Foods.Remove(food);
         _context.SaveChanges();
 
-        return NoContent();
+        return Ok($"Deleted food with ID: {id} successfully.");
+
     }
 }

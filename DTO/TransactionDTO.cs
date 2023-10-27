@@ -13,5 +13,7 @@ public class TransactionDTO
     public int Quantity { get; set; }
     public string CustomerName { get; set; }
     public string FoodName { get; set; }
+
+    public decimal Amount { get; set; }
 }
 

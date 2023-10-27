@@ -22,6 +22,8 @@ public class TransactionController : ControllerBase
     [HttpGet]
     public IActionResult GetTransactions()
     {
+
+
         var transactions = _context.Transactions
             .Include(t => t.Customer)
             .Include(t => t.Food)
@@ -30,10 +32,10 @@ public class TransactionController : ControllerBase
                 TransactionId = t.TransactionId,
                 CustomerId = t.CustomerId,
                 FoodId = t.FoodId,
-                TransactionDate = t.TransactionDate.ToString(), // Convert to string or DateTime as needed
+                TransactionDate = t.TransactionDate.ToString(), 
                 Quantity = t.Quantity,
-                CustomerName = t.Customer.FirstName, // Include only the "name" property
-                FoodName = t.Food.Name // Include only the "name" property
+                CustomerName = t.Customer != null ? t.Customer.FirstName : "N/A",
+                FoodName = t.Food.Name 
             })
             .ToList();
         return Ok(transactions);
@@ -43,12 +45,37 @@ public class TransactionController : ControllerBase
     [HttpGet("{id}")]
     public IActionResult GetTransaction(int id)
     {
-        var transaction = _context.Transactions.Find(id);
+        var transaction = _context.Transactions
+            .Include(t => t.Customer)
+            .Include(t => t.Food)
+            .FirstOrDefault(t => t.TransactionId == id);
+
         if (transaction == null)
         {
-            return NotFound();
+            return NotFound(); // Return a 404 Not Found response if the transaction doesn't exist
         }
-        return Ok(transaction);
+
+        // Calculate the amount based on the price of the associated food
+        decimal amount = 0;
+        if (transaction.Food != null)
+        {
+            amount = transaction.Food.Price * transaction.Quantity;
+        }
+
+        // Map the transaction data to a DTO that includes the calculated amount
+        var transactionDTO = new TransactionDTO
+        {
+            TransactionId = transaction.TransactionId,
+            CustomerId = transaction.CustomerId,
+            FoodId = transaction.FoodId,
+            TransactionDate = transaction.TransactionDate.ToString(),
+            Quantity = transaction.Quantity,
+            CustomerName = transaction.Customer.FirstName,
+            FoodName = transaction.Food.Name,
+            Amount = amount // Include the calculated amount in the DTO
+        };
+
+        return Ok(transactionDTO);
     }
 
     // POST: api/transactions
@@ -70,15 +97,34 @@ public class TransactionController : ControllerBase
     [HttpPut("{id}")]
     public IActionResult UpdateTransaction(int id, [FromBody] Transaction transaction)
     {
-        if (id != transaction.TransactionId)
+        var existingTransaction = _context.Transactions.FirstOrDefault(t => t.TransactionId == id);
+
+        if (existingTransaction == null)
         {
-            return BadRequest();
+            return NotFound(); // Return a 404 Not Found response if the transaction doesn't exist
         }
 
-        _context.Entry(transaction).State = EntityState.Modified;
-        _context.SaveChanges();
+      //  if (id != transaction.TransactionId)
+      //  {
+      //      return BadRequest("Transaction ID in the request body does not match the ID in the URL.");
+      //  }
 
-        return NoContent();
+        try
+        {
+            // Update the properties of 'existingTransaction' based on the data in the 'transaction' parameter
+            existingTransaction.CustomerId = transaction.CustomerId;
+            existingTransaction.FoodId = transaction.FoodId;
+            existingTransaction.TransactionDate = transaction.TransactionDate;
+            existingTransaction.Quantity = transaction.Quantity;
+
+            _context.SaveChanges();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            // Log the exception
+            return StatusCode(500, "Internal server error: " + ex.Message);
+        }
     }
 
     // DELETE: api/transactions/{id}

@@ -22,21 +22,47 @@ public class CustomerController : ControllerBase
     [HttpGet]
     public IActionResult GetCustomers()
     {
-        var customers = _context.Customers.ToList();
+        var customers = _context.Customers
+        .Select(c => new CustomersDTO
+        {
+            CustomerId = c.CustomerId,
+            FirstName = c.FirstName,
+            LastName = c.LastName,
+            Email = c.Email,
+            Phone = c.Phone
+        })
+        .ToList();
         return Ok(customers);
     }
 
-    // GET: api/customers/{id}
     [HttpGet("{id}")]
     public IActionResult GetCustomer(int id)
     {
-        var customer = _context.Customers.Find(id);
+        var customer = _context.Customers
+            .Include(c => c.Transactions)
+            .ThenInclude(t => t.Food)
+            .FirstOrDefault(c => c.CustomerId == id);
+
         if (customer == null)
         {
             return NotFound();
         }
-        return Ok(customer);
+
+        decimal totalAmount = customer.Transactions?.Sum(t => (t.Food?.Price ?? 0) * t.Quantity) ?? 0;
+
+        var customerDTO = new CustomerDTO
+        {
+            CustomerId = customer.CustomerId,
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email,
+            Phone = customer.Phone,
+            TotalAmount = totalAmount // Calculate and include the total amount
+        };
+
+        return Ok(customerDTO);
     }
+
 
     // POST: api/customers
     [HttpPost]
@@ -57,15 +83,30 @@ public class CustomerController : ControllerBase
     [HttpPut("{id}")]
     public IActionResult UpdateCustomer(int id, [FromBody] Customer customer)
     {
-        if (id != customer.CustomerId)
+        var existingCustomer = _context.Customers.FirstOrDefault(c => c.CustomerId == id);
+
+        if (existingCustomer == null)
         {
-            return BadRequest();
+            return NotFound(); // Return a 404 Not Found response if the customer doesn't exist
         }
 
-        _context.Entry(customer).State = EntityState.Modified;
-        _context.SaveChanges();
+       
 
-        return NoContent();
+        try
+        {
+            // Update the properties of 'existingCustomer' based on the data in the 'customer' parameter
+            existingCustomer.FirstName = customer.FirstName;
+            existingCustomer.LastName = customer.LastName;
+            // Update other customer properties as needed
+
+            _context.SaveChanges();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            // Log the exception
+            return StatusCode(500, "Internal server error: " + ex.Message);
+        }
     }
 
     // DELETE: api/customers/{id}

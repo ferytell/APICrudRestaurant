@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext
     {
         // Define any additional configuration for your tables here (e.g., indexes, relationships).
 
+
         modelBuilder.Entity<Food>()
             .Property(f => f.Price)
             .HasColumnType("decimal(18, 2)"); // This specifies a decimal with 18 total digits and 2 decimal places.

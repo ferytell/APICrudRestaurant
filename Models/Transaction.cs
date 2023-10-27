@@ -13,6 +13,7 @@ namespace APICrudRestaurant.Models
         public DateTime TransactionDate { get; set; }
         public int Quantity { get; set; }
 
+
         public Customer Customer { get; set; }
         public Food Food { get; set; }
 
