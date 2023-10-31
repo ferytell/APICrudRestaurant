@@ -1,6 +1,6 @@
 # APICrudRestaurant
 
-##this is CRUD app simple API writen uisng C
+## this is CRUD app simple API writen uisng C
 
 this app using database SQL Server 
 
